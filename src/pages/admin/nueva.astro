@@ -1,0 +1,75 @@
+---
+export const prerender = true;
+
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Nueva receta · Cocina Fácil">
+  <section class="hero">
+    <h1 class="page-title">Nueva receta</h1>
+  </section>
+
+  <article class="card form-card">
+    <form id="nueva-form" class="stack">
+      <label>
+        <span>Nombre</span>
+        <input name="nombre" required maxlength="80" />
+      </label>
+      <label>
+        <span>Descripción</span>
+        <textarea name="descripcion" required maxlength="400"></textarea>
+      </label>
+      <label>
+        <span>Categoría</span>
+        <select name="categoria" required>
+          <option value="Desayuno">Desayuno</option>
+          <option value="Almuerzo">Almuerzo</option>
+          <option value="Cena">Cena</option>
+          <option value="Postre">Postre</option>
+        </select>
+      </label>
+      <label>
+        <span>Tiempo (minutos)</span>
+        <input name="tiempo_minutos" type="number" min="1" max="300" required />
+      </label>
+      <p id="nueva-error" class="flash" hidden></p>
+      <button type="submit">Guardar</button>
+      <a class="btn secondary" href="/admin">Cancelar</a>
+    </form>
+  </article>
+</Layout>
+
+<script>
+  import { supabase } from '../../lib/supabase-client';
+  import { requireSession } from '../../lib/require-session';
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('nueva-form') as HTMLFormElement | null;
+    const errorBox = document.getElementById('nueva-error');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    void requireSession();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const ok = await requireSession();
+      if (!ok) return;
+      const data = new FormData(form);
+      const { error } = await supabase.from('recetas').insert({
+        nombre: String(data.get('nombre') ?? '').trim(),
+        descripcion: String(data.get('descripcion') ?? '').trim(),
+        categoria: String(data.get('categoria') ?? '').trim(),
+        tiempo_minutos: Number(data.get('tiempo_minutos')),
+      });
+      if (error) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+      window.location.href = '/admin';
+    });
+  });
+</script>

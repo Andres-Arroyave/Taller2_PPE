@@ -1,0 +1,63 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Registro · Cocina Fácil" description="Crea una cuenta para administrar recetas.">
+  <section class="hero">
+    <h1 class="page-title">Crear cuenta</h1>
+  </section>
+
+  <article class="card form-card">
+    <form id="registro-form" class="stack">
+      <label>
+        <span>Correo</span>
+        <input type="email" name="email" required autocomplete="email" />
+      </label>
+      <label>
+        <span>Contraseña</span>
+        <input type="password" name="password" required autocomplete="new-password" minlength="6" />
+      </label>
+      <p id="registro-error" class="flash" hidden></p>
+      <p id="registro-ok" class="hint" hidden></p>
+      <button type="submit">Registrarme</button>
+      <p class="hint">¿Ya tienes cuenta? <a href="/login">Entrar</a></p>
+    </form>
+  </article>
+</Layout>
+
+<script>
+  import { supabase } from '../lib/supabase-client';
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('registro-form') as HTMLFormElement | null;
+    const errorBox = document.getElementById('registro-error');
+    const okBox = document.getElementById('registro-ok');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const email = String(data.get('email') ?? '');
+      const password = String(data.get('password') ?? '');
+      const { data: result, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+      if (result.session) {
+        window.location.href = '/admin';
+        return;
+      }
+      if (okBox) {
+        okBox.hidden = false;
+        okBox.textContent = 'Cuenta creada. Si el proyecto pide confirmar el correo, revísalo y luego entra.';
+      }
+    });
+  });
+</script>

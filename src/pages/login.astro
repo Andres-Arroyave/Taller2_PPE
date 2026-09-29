@@ -1,0 +1,54 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Entrar · Cocina Fácil" description="Inicia sesión para administrar recetas.">
+  <section class="hero">
+    <h1 class="page-title">Entrar</h1>
+  </section>
+
+  <article class="card form-card">
+    <form id="login-form" class="stack">
+      <label>
+        <span>Correo</span>
+        <input type="email" name="email" required autocomplete="email" />
+      </label>
+      <label>
+        <span>Contraseña</span>
+        <input type="password" name="password" required autocomplete="current-password" minlength="6" />
+      </label>
+      <p id="login-error" class="flash" hidden></p>
+      <button type="submit">Iniciar sesión</button>
+      <p class="hint">¿No tienes cuenta? <a href="/registro">Regístrate</a></p>
+    </form>
+  </article>
+</Layout>
+
+<script>
+  import { supabase } from '../lib/supabase-client';
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('login-form') as HTMLFormElement | null;
+    const errorBox = document.getElementById('login-error');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const email = String(data.get('email') ?? '');
+      const password = String(data.get('password') ?? '');
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+      window.location.href = '/admin';
+    });
+  });
+</script>

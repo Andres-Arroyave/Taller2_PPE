@@ -1,0 +1,108 @@
+---
+export const prerender = true;
+
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Editar receta · Cocina Fácil">
+  <section class="hero">
+    <h1 class="page-title">Editar receta</h1>
+  </section>
+
+  <article class="card form-card">
+    <form id="editar-form" class="stack">
+      <input type="hidden" name="id" />
+      <label>
+        <span>Nombre</span>
+        <input name="nombre" required maxlength="80" />
+      </label>
+      <label>
+        <span>Descripción</span>
+        <textarea name="descripcion" required maxlength="400"></textarea>
+      </label>
+      <label>
+        <span>Categoría</span>
+        <select name="categoria" required>
+          <option value="Desayuno">Desayuno</option>
+          <option value="Almuerzo">Almuerzo</option>
+          <option value="Cena">Cena</option>
+          <option value="Postre">Postre</option>
+        </select>
+      </label>
+      <label>
+        <span>Tiempo (minutos)</span>
+        <input name="tiempo_minutos" type="number" min="1" max="300" required />
+      </label>
+      <p id="editar-error" class="flash" hidden></p>
+      <button type="submit">Guardar cambios</button>
+      <a class="btn secondary" href="/admin">Volver</a>
+    </form>
+  </article>
+</Layout>
+
+<script>
+  import { supabase } from '../../lib/supabase-client';
+  import { requireSession } from '../../lib/require-session';
+  import type { Receta } from '../../lib/types';
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('editar-form') as HTMLFormElement | null;
+    const errorBox = document.getElementById('editar-error');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) {
+      window.location.href = '/admin';
+      return;
+    }
+
+    async function fill() {
+      const ok = await requireSession();
+      if (!ok) return;
+      const { data, error } = await supabase.from('recetas').select('*').eq('id', id).single();
+      if (error || !data) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error?.message ?? 'No se encontró la receta';
+        }
+        return;
+      }
+      const receta = data as Receta;
+      (form.elements.namedItem('id') as HTMLInputElement).value = receta.id;
+      (form.elements.namedItem('nombre') as HTMLInputElement).value = receta.nombre;
+      (form.elements.namedItem('descripcion') as HTMLTextAreaElement).value = receta.descripcion ?? '';
+      (form.elements.namedItem('categoria') as HTMLSelectElement).value = receta.categoria ?? 'Almuerzo';
+      (form.elements.namedItem('tiempo_minutos') as HTMLInputElement).value = String(
+        receta.tiempo_minutos ?? 10,
+      );
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const ok = await requireSession();
+      if (!ok) return;
+      const data = new FormData(form);
+      const recetaId = String(data.get('id') ?? '');
+      const { error } = await supabase
+        .from('recetas')
+        .update({
+          nombre: String(data.get('nombre') ?? '').trim(),
+          descripcion: String(data.get('descripcion') ?? '').trim(),
+          categoria: String(data.get('categoria') ?? '').trim(),
+          tiempo_minutos: Number(data.get('tiempo_minutos')),
+        })
+        .eq('id', recetaId);
+      if (error) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+      window.location.href = '/admin';
+    });
+
+    void fill();
+  });
+</script>

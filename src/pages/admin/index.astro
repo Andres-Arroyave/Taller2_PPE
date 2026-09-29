@@ -1,0 +1,113 @@
+---
+export const prerender = true;
+
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Administrar recetas · Cocina Fácil" description="Administra el catálogo de recetas.">
+  <section class="hero">
+    <h1 class="page-title">Administrar recetas</h1>
+    <p class="lede">Crea, edita o elimina recetas del catálogo.</p>
+    <p>
+      <a class="btn" href="/admin/nueva">Nueva receta</a>
+    </p>
+  </section>
+
+  <p id="admin-error" class="flash" hidden></p>
+
+  <div class="table-wrap card">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Tiempo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="recetas-body">
+        <tr>
+          <td colspan="4">Esperando sesión…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</Layout>
+
+<script>
+  import { supabase } from '../../lib/supabase-client';
+  import { requireSession } from '../../lib/require-session';
+  import type { Receta } from '../../lib/types';
+
+  document.addEventListener('astro:page-load', () => {
+    const body = document.getElementById('recetas-body');
+    const errorBox = document.getElementById('admin-error');
+    if (!body) return;
+
+    async function load() {
+      const ok = await requireSession();
+      if (!ok) return;
+
+      const { data, error } = await supabase
+        .from('recetas')
+        .select('id, nombre, descripcion, tiempo_minutos, categoria, created_at')
+        .order('nombre');
+
+      if (error) {
+        if (errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+
+      const recetas = (data ?? []) as Receta[];
+      if (recetas.length === 0) {
+        body.innerHTML = '<tr><td colspan="4">Aún no hay recetas.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = recetas
+        .map(
+          (r) => `
+            <tr>
+              <td>${escapeHtml(r.nombre)}</td>
+              <td>${escapeHtml(r.categoria ?? '')}</td>
+              <td>${r.tiempo_minutos ?? ''} min</td>
+              <td class="actions">
+                <a class="btn secondary" href="/admin/editar?id=${encodeURIComponent(r.id)}">Editar</a>
+                <button class="btn danger" data-del="${r.id}" type="button">Borrar</button>
+              </td>
+            </tr>`,
+        )
+        .join('');
+    }
+
+    if (body.dataset.bound !== 'true') {
+      body.dataset.bound = 'true';
+      body.addEventListener('click', async (event) => {
+        const target = event.target as HTMLElement;
+        const id = target.dataset.del;
+        if (!id) return;
+        if (!confirm('¿Eliminar esta receta?')) return;
+        const { error } = await supabase.from('recetas').delete().eq('id', id);
+        if (error && errorBox) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message;
+          return;
+        }
+        await load();
+      });
+    }
+
+    void load();
+  });
+
+  function escapeHtml(value: string) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  }
+</script>

@@ -1,0 +1,34 @@
+---
+export const prerender = true;
+
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Acerca de · Cocina Fácil"
+  description="Quiénes somos y de qué trata Cocina Fácil."
+>
+  <section class="hero">
+    <h1 class="page-title">Acerca de</h1>
+    <p class="lede">
+      Cocina Fácil reúne recetas cortas para el día a día: desayunos, almuerzos,
+      cenas y postres que se pueden preparar sin complicaciones.
+    </p>
+  </section>
+
+  <div class="about-grid">
+    <article class="card">
+      <h2>Nuestra idea</h2>
+      <p>
+        Queremos un catálogo claro, con tiempos reales y pasos simples. Puedes
+        explorar las recetas en público y, si administras el sitio, agregar o
+        actualizar platos cuando haga falta.
+      </p>
+    </article>
+    <article class="card">
+      <h2>Qué vas a encontrar</h2>
+      <p>Cada receta tiene nombre, una descripción breve, categoría y tiempo de preparación.</p>
+      <p class="muted">Pensado para cocinar en casa, sin recetas eternas ni ingredientes raros.</p>
+    </article>
+  </div>
+</Layout>

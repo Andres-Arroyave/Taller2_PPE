@@ -1,0 +1,94 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import { createServerClient } from '../lib/supabase-server';
+import { PAGE_SIZE, type Receta } from '../lib/types';
+import { listadoUrl } from '../lib/url';
+
+const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+const pageParam = Number(Astro.url.searchParams.get('page') ?? '1');
+const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+const from = (page - 1) * PAGE_SIZE;
+const to = from + PAGE_SIZE - 1;
+
+let recetas: Receta[] = [];
+let total = 0;
+let errorMsg = '';
+
+try {
+  const supabase = createServerClient();
+  let query = supabase
+    .from('recetas')
+    .select('id, nombre, descripcion, tiempo_minutos, categoria, created_at', { count: 'exact' })
+    .order('nombre', { ascending: true })
+    .range(from, to);
+
+  if (q) {
+    query = query.ilike('nombre', `%${q}%`);
+  }
+
+  const { data, count, error } = await query;
+  if (error) {
+    errorMsg = error.message;
+  } else {
+    recetas = (data ?? []) as Receta[];
+    total = count ?? 0;
+  }
+} catch (error) {
+  errorMsg = error instanceof Error ? error.message : 'No se pudo consultar Supabase';
+}
+
+const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+---
+
+<Layout title={q ? `Buscar “${q}” · Cocina Fácil` : 'Cocina Fácil · Recetas'}>
+  <section class="hero">
+    <h1>Recetas cortas para el día a día</h1>
+    <p class="lede">Encuentra ideas rápidas por nombre y arma tu menú de la semana.</p>
+
+    <form class="search-bar" method="get" action="/">
+      <input type="search" name="q" value={q} placeholder="Buscar por nombre, ej. arepa" />
+      <button type="submit">Buscar</button>
+      {q && <a class="btn secondary" href="/">Limpiar</a>}
+    </form>
+  </section>
+
+  {errorMsg && <p class="flash">{errorMsg}</p>}
+
+  {
+    recetas.length === 0 && !errorMsg ? (
+      <p class="empty">No hay recetas para mostrar. Prueba otra búsqueda o agrega recetas desde Administrar.</p>
+    ) : (
+      <section class="grid">
+        {recetas.map((receta) => (
+          <article class="card">
+            <h2>{receta.nombre}</h2>
+            <p>{receta.descripcion}</p>
+            <div class="meta">
+              {receta.categoria && <span class="pill">{receta.categoria}</span>}
+              {receta.tiempo_minutos != null && (
+                <span class="pill">{receta.tiempo_minutos} min</span>
+              )}
+            </div>
+          </article>
+        ))}
+      </section>
+    )
+  }
+
+  {
+    totalPages > 1 && (
+      <nav class="pagination" aria-label="Paginación">
+        {page > 1 && <a href={listadoUrl(q, page - 1)}>Anterior</a>}
+        {pages.map((n) => (
+          <a href={listadoUrl(q, n)} class={n === page ? 'is-current' : undefined}>
+            {n}
+          </a>
+        ))}
+        {page < totalPages && <a href={listadoUrl(q, page + 1)}>Siguiente</a>}
+      </nav>
+    )
+  }
+</Layout>

@@ -1,0 +1,82 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import '../styles/global.css';
+
+type Props = {
+  title: string;
+  description?: string;
+};
+
+const { title, description = 'Catálogo público de recetas simples.' } = Astro.props;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <ClientRouter />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark">CF</span>
+          <span>
+            <strong>Cocina Fácil</strong>
+            <small>Recetas cortas, listas para cocinar</small>
+          </span>
+        </a>
+        <nav>
+          <a href="/" class={path === '/' ? 'is-active' : undefined}>Recetas</a>
+          <a href="/acerca-de" class={path.startsWith('/acerca-de') ? 'is-active' : undefined}>Acerca de</a>
+          <a href="/admin" class={path.startsWith('/admin') ? 'is-active' : undefined}>Administrar</a>
+          <a href="/login" id="nav-login">Entrar</a>
+          <button type="button" id="nav-logout" hidden>Salir</button>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <slot />
+    </main>
+    <footer class="site-footer wrap">
+      Cocina Fácil
+    </footer>
+    <script>
+      import { supabase } from '../lib/supabase-client';
+
+      async function syncNav() {
+        const login = document.getElementById('nav-login');
+        const logout = document.getElementById('nav-logout') as HTMLButtonElement | null;
+        const { data } = await supabase.auth.getSession();
+        const logged = Boolean(data.session);
+
+        if (login) login.hidden = logged;
+        if (logout) logout.hidden = !logged;
+
+        logout?.addEventListener(
+          'click',
+          async () => {
+            await supabase.auth.signOut();
+            window.location.href = '/';
+          },
+          { once: true },
+        );
+      }
+
+      document.addEventListener('astro:page-load', () => {
+        void syncNav();
+      });
+    </script>
+  </body>
+</html>
